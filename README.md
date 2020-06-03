@@ -1297,6 +1297,242 @@ plot(nomo1, xfrac = .65, lmgp = .35, cex.axis = 0.65)
 title(main="Fig. 7 Nomogram predicting 4-year survival post emergency laparotomy", cex.main=1)
 
 
+##########################################################################################
+## (20) Frailty binary logistic regression model                                        ##
+##########################################################################################
+
+describe(data$frailty) # how many are missing
+plot(naclus(data)) # plot the missing data
+naplot(naclus(data)) # plot the number of variables by data with NA
+
+## frailty assessment yes/no proportion of overall cohort ##
+
+frail_ass<-is.na(data$frailty) # true/false matrix for NA data for frailty assessment variable
+data$frail_ass<-frail_ass # new vector to dt with True/False frailty assessment
+
+frail_ass<-table(data$frail_ass,data$mort_stat2)
+
+fisher.test(frail_ass.table)
+
+## frailty assessment yes/no proportion 30-day mortlality ##
+
+frail_ass.table1<-table(data$frail_ass,data$mort30days)
+
+fisher.test(frail_ass.table1)
+
+## difference btw pt who had a frailty assessment versus those who did not ##
+
+no_frailass<-data %>% 
+  filter(frail_ass==TRUE)
+
+frailass<-data %>% 
+  filter(frail_ass==FALSE)
+
+wilcox.test(no_frailass$rdw, frailass$rdw) # continuous data
+wilcox.test(no_frailass$hb, frailass$hb)
+wilcox.test(no_frailass$nela_risk, frailass$nela_risk)
+wilcox.test(no_frailass$age_at_adm, frailass$age_at_adm)
+wilcox.test(no_frailass$cr, frailass$cr)
+wilcox.test(no_frailass$wcc, frailass$wcc)  
+wilcox.test(no_frailass$urea, frailass$urea) 
+wilcox.test(no_frailass$sodium, frailass$sodium)
+wilcox.test(no_frailass$potassium,frailass$potassium)
+wilcox.test(no_frailass$sbp, frailass$sbp)
+wilcox.test(no_frailass$pulse, frailass$pulse)
+
+# categorical data
+
+ecg<-table(data$frail_ass,data$ecg) 
+fisher.test(ecg)
+
+cardiac<-table(data$frail_ass,data$cardiac_signs)
+fisher.test(cardiac)
+
+resp<-table(data$frail_ass,data$resp_signs)
+fisher.test(resp)
+
+sev<-table(data$frail_ass,data$op_sev)
+fisher.test(sev)
+
+tbl<-table(data$frail_ass,data$pred_tbl)
+fisher.test(tbl)
+
+soil<-table(data$frail_ass,data$pred_perit_soil)
+fisher.test(soil)
+
+ncepod<-table(data$frail_ass,data$ncepod_cat)
+fisher.test(ncepod)
+
+malignancy<-table(data$frail_ass,data$malignancy)
+fisher.test(malignancy)
+
+asa <- matrix(c(109, 107,72,68), ncol=2)
+colnames(asa) <- c('<ASA 3', '≥ASA 3')
+rownames(asa) <- c('No frailty assessment', 'Frailty assessment')
+asa <- as.table(asa)
+fisher.test(asa)
+
+sex<-table(data$frail_ass,data$sex)
+fisher.test(sex)
+
+## frail patients by RDW quartile ## 
+
+rdw.frail<-table(data$frailty, data$rdw_quartiles)
+addmargins(rdw.frail) # frequency table
+
+## statistical assessment of frailty across RDW quartiles ##
+
+chi<-chisq.test(rdw.frail)
+
+library(corrplot) # evaluate which cells contribute most
+contrib <- 100*chi$residuals^2/chi$statistic
+round(contrib, 3)
+
+## baseline characteristics frail vs non-frail ##
+
+frail<-data %>% 
+  filter(frailty=="Frail") 
+
+nofrail<-data %>% 
+  filter(frailty=="Not frail")
+
+# statistical testing for difference between frail and non frail
+wilcox.test(frail$rdw, nofrail$rdw)
+wilcox.test(frail$hb, nofrail$hb)
+wilcox.test(frail$nela_risk, nofrail$nela_risk)
+wilcox.test(frail$age_at_adm, nofrail$age_at_adm)
+wilcox.test(frail$cr, nofrail$cr)
+
+wilcox.test(frail$wcc, nofrail$wcc)  # non-significantly different
+wilcox.test(frail$urea, nofrail$urea) 
+wilcox.test(frail$sodium, nofrail$sodium)
+wilcox.test(frail$potassium,nofrail$potassium)
+wilcox.test(frail$sbp, nofrail$sbp)
+wilcox.test(frail$pulse, nofrail$pulse)
+
+# test the variables in the frail versus non-frail 
+
+ecg<-table(data$frailty,data$ecg)
+fisher.test(ecg)
+
+cardiac<-table(data$frailty,data$cardiac_signs)
+fisher.test(cardiac)
+
+resp<-table(data$frailty,data$resp_signs)
+fisher.test(resp)
+
+sev<-table(data$frailty,data$op_sev)
+fisher.test(sev)
+
+tbl<-table(data$frailty,data$pred_tbl)
+fisher.test(tbl)
+
+soil<-table(data$frailty,data$pred_perit_soil)
+fisher.test(soil)
+
+ncepod<-table(data$frailty,data$ncepod_cat)
+fisher.test(ncepod)
+
+malignancy<-table(data$frailty,data$malignancy)
+fisher.test(malignancy)
+
+## looking at the proportion of frail vs non-frail who die at 30-days ##
+
+survival30<-table(data$frailty,data$mort30days)
+fisher.test(survival30)
+
+# looking at the proportion of frail vs non-frail who die overall
+
+survival<-table(data$frailty,data$mort_stat3)
+fisher.test(survival)
+
+## simple logistic regression model for frailty ##
+
+data<- data %>% 
+  mutate (rdw=Winsorize(rdw, probs = c(0.00,0.95)),
+          age_at_adm=Winsorize(age_at_adm, probs = c(0.05,0.95)),
+          hb=Winsorize(hb,probs = c(0.05,1.00)))
+
+data<-data[!is.na(data$frailty),] # remove the NA
+data<-data %>% 
+  mutate(frailty=ifelse(frailty=="Not frail",0,1)) # change factor to numeric
+data<-transform(data,age.tertile=cut2(age_at_adm, g=3)) # cut adm age into tertials
+
+dd<-datadist(data); options(datadist = "dd")
+
+f<-lrm(frailty~rcs(rdw,3)+log(age_at_adm)+hb+sex, x=TRUE, y=TRUE, data=data)
+
+plot(anova(f))
+
+plot(Predict(f))
+
+plot(summary(f))
+
+p<-Predict(f,rdw,age_at_adm=c(30,50,70,90), fun=plogis)
+ggplot(p, xlab= " RDW %", ylab="Probability of frailty", adj.subtitle = FALSE)
+
+set.seed(131)
+
+validate(f,B=400)
+
+cal<-calibrate(f, B=400)
+plot(cal) 
+
+## penalise model ##
+
+d<-options(digits = 4)
+pentrace(f,
+         list(simple=seq(0,10,by=0.2), nonlinear=seq(0,125,by=5)))
+
+f.pen<-update(f,
+              penalty=list(simple=5, nonlinear=121))
+print(f.pen, coefs=FALSE)
+
+plot(anova(f.pen))
+
+plot(summary(f.pen))
+
+plot(summary(f.pen, rdw=c(13.8,17.3), age_at_adm=c(45,75), hb=c(103,135)), # refine OR plot
+     at=c(seq(0,15,by=1)),q=c(0.95), col="darkgrey", col.points="black", pch=23, lwd=2)
+
+ggplot(Predict(f.pen, rdw,age_at_adm=c(32,45,60,77,84), conf.int = F, fun = plogis),
+       xlab="RDW %", ylab="Probability of frailty", adj.subtitle = F)+
+  geom_line(aes(linetype=age_at_adm, color=age_at_adm, size=age_at_adm))+
+  scale_linetype_manual(values = c(1,1,1,1,1))+
+  scale_color_manual(values= c("#000000", "#E69F00", "#56B4E9", "#009E73","#CC79A7"))+
+  scale_size_manual(values = c(0.6,0.6,0.6,0.6,0.6))+
+  theme_classic()
+
+set.seed(454) # for reproducibility 
+
+validate(f.pen,B=400) # validate the penalised model 
+
+cal1<-calibrate(f.pen, B=400) # calibration of the penalised model 
+plot(cal1)
+
+plot(nomogram(f.pen, fun = list('Prob frailty=Frail'=plogis))) # plotting nomgram for frailty model
+
+## checking model assumptions ##
+
+vif(f) # multicollinearity
+
+inf<-which.influence(f,0.2) # influential observations - cut off 0.2
+show.influence(inf,data)
+resid(f,type="dfbetas")
+range(resid(f,type="dfbetas")) # spread of residuals 
+subset<-data[-c(1,5,26,64,83,105,115),] # sensitivity analysis without influential values
+attach(subset)
+
+sensitivity.model<-lrm(frailty~rcs(rdw,3)+log(age_at_adm)+hb+sex, x=TRUE, y=TRUE,data=subset)
+sensitivity.model
+anova(sensitivity.model)
+anova(f) #compare the models with and without influential outliers 
+detach(subset)
+
+z<-predict(f, type = "terms") # pooled interaction test 
+rdw.ia<-z[,"rdw"]
+all.others<-z[,-1]
+anova(lrm(frailty~rdw.ia*all.others, data = data))
 
 
 
